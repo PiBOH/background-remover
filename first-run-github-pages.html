@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>AI Background Remover - Phase 1</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@stlite/browser@0.75.0/build/stlite.css">
+    <style>
+        body { background: #0e1117; color: white; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        #box { width: 90%; max-width: 600px; }
+        .bar-bg { width: 100%; background: #333; height: 12px; border-radius: 6px; overflow: hidden; margin: 20px 0; border: 1px solid #444; }
+        #bar-fill { width: 0%; background: #ff4b4b; height: 100%; transition: width 0.4s; }
+        #console { background: #000; color: #0f0; padding: 15px; font-size: 12px; height: 180px; overflow-y: auto; border: 1px solid #444; border-radius: 4px; box-shadow: 0 0 15px rgba(0,255,0,0.1); }
+    </style>
+</head>
+<body>
+    <div id="box">
+        <h2 style="font-family: sans-serif;">PHASE 1: SYSTEM BOOT</h2>
+        <div id="stats" style="color:#aaa;">Engine Load: 0% | ETA: Calculating...</div>
+        <div class="bar-bg"><div id="bar-fill"></div></div>
+        <div id="console"></div>
+    </div>
+    <div id="root"></div>
+    <script type="module">
+        import { mount } from "https://cdn.jsdelivr.net/npm/@stlite/browser@0.75.0/build/stlite.js";
+        const fill = document.getElementById('bar-fill');
+        const con = document.getElementById('console');
+        const stats = document.getElementById('stats');
+        const log = (m) => { const d = document.createElement('div'); d.textContent = `[${new Date().toLocaleTimeString()}] > ${m}`; con.appendChild(d); con.scrollTop = con.scrollHeight; };
+
+        let p = 0;
+        let start = Date.now();
+        const interval = setInterval(() => {
+            if (p < 98) {
+                p += (100 - p) * 0.05;
+                fill.style.width = p + '%';
+                let elapsed = (Date.now() - start) / 1000;
+                let rem = Math.max(1, Math.round(25 - elapsed));
+                stats.textContent = `Engine Load: ${Math.round(p)}% | Estimated: ${rem}s remaining`;
+            }
+        }, 1000);
+
+        log("Waking up WebAssembly kernel...");
+        log("Downloading Python runtime...");
+        log("Installing: rembg, pillow...");
+
+        mount({
+            requirements: ["rembg", "pillow"],
+            entrypoint: "first-run-github-pages.py",
+            files: {
+                "first-run-github-pages.py": { url: "./first-run-github-pages.py" },
+                "bg_remover.py": { url: "./bg_remover.py" }
+            }
+        }, document.getElementById("root")).then(() => {
+            clearInterval(interval);
+            log("System online! Launching Phase 2...");
+            setTimeout(() => { document.getElementById('box').style.display='none'; }, 800);
+        });
+    </script>
+</body>
+</html>
