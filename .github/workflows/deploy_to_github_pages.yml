@@ -19,56 +19,65 @@ jobs:
 
       - name: Create static site
         run: |
-          # 1. Creiamo la cartella di output
           mkdir -p dist
-
-          # 2. Creiamo lo script di costruzione separato per evitare errori YAML
           cat << 'EOF' > build_app.py
           import json
           import os
 
-          # Leggiamo il codice originale
           with open('bg_remover.py', 'r') as f:
               original_code = f.read()
 
-          # Prepariamo il codice "Wrapper" con la barra di caricamento
           wrapper_code = r"""
-          import streamlit as st
-          import os
-          import urllib.request
-          from pathlib import Path
-          import time
+import streamlit as st
+import os
+import urllib.request
+from pathlib import Path
+import time
 
-          def ensure_model_exists():
-              model_dir = Path("/home/pyodide/.u2net")
-              model_path = model_dir / "u2net.onnx"
-              if not model_path.exists():
-                  st.info("🚀 First time setup: Downloading AI Model (175MB)...")
-                  model_dir.mkdir(parents=True, exist_ok=True)
-                  progress_bar = st.progress(0)
-                  status_text = st.empty()
-                  def report(block_num, block_size, total_size):
-                      downloaded = block_num * block_size
-                      if total_size > 0:
-                          percent = min(int(downloaded * 100 / total_size), 100)
-                          progress_bar.progress(percent)
-                          status_text.text(f"Progress: {percent}% ({downloaded // (1024*1024)}MB / {total_size // (1024*1024)}MB)")
-                  
-                  url = "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx"
-                  urllib.request.urlretrieve(url, model_path, reporthook=report)
-                  st.success("✅ Download complete! Starting app...")
-                  time.sleep(1)
-                  st.session_state["model_ready"] = True
-                  st.rerun()
+# Forziamo rembg a usare questa cartella
+os.environ["U2NET_HOME"] = "/home/pyodide/.u2net"
 
-          if "model_ready" not in st.session_state:
-              ensure_model_exists()
-              st.session_state["model_ready"] = True
+def ensure_model_exists():
+    model_dir = Path("/home/pyodide/.u2net/u2net")
+    model_path = model_dir / "u2net.onnx"
+    
+    if not model_path.exists():
+        st.markdown("### 🛠️ System Setup")
+        st.warning("AI Model not found. Starting one-time download (175MB)...")
+        model_dir.mkdir(parents=True, exist_ok=True)
+        
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        log_text = st.empty()
+        
+        url = "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx"
+        
+        try:
+            def report(block_num, block_size, total_size):
+                downloaded = block_num * block_size
+                if total_size > 0:
+                    percent = min(int(downloaded * 100 / total_size), 100)
+                    progress_bar.progress(percent)
+                    status_text.markdown(f"**Download Progress: {percent}%**")
+                    log_text.code(f"Received: {downloaded // (1024*1024)}MB / {total_size // (1024*1024)}MB\nFile: u2net.onnx")
 
-          # --- START ORIGINAL APP ---
-          """.replace('          ', '') + original_code
+            urllib.request.urlretrieve(url, model_path, reporthook=report)
+            st.success("✅ Download Complete! Reloading...")
+            time.sleep(1)
+            st.session_state["model_ready"] = True
+            st.rerun()
+        except Exception as e:
+            st.error(f"Download failed: {e}")
+            st.stop()
+    else:
+        st.session_state["model_ready"] = True
 
-          # Template HTML
+if "model_ready" not in st.session_state:
+    ensure_model_exists()
+
+# --- START ORIGINAL APP ---
+""".replace('          ', '') + original_code
+
           html_template = """
           <!DOCTYPE html>
           <html>
@@ -77,23 +86,45 @@ jobs:
             <title>AI Background Remover</title>
             <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@stlite/browser@0.75.0/build/stlite.css">
             <style>
-              body { background: #0e1117; color: white; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-              #l { text-align: center; }
-              .s { width: 50px; height: 50px; border: 5px solid #333; border-top: 5px solid #ff4b4b; border-radius: 50%; animation: r 1s linear infinite; margin: 0 auto 20px; }
-              @keyframes r { to { transform: rotate(360deg); } }
+              body { background: #0e1117; color: white; font-family: 'Courier New', monospace; margin: 0; overflow: hidden; }
+              #loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; width: 100vw; }
+              .spinner { width: 50px; height: 50px; border: 5px solid #333; border-top: 5px solid #ff4b4b; border-radius: 50%; animation: spin 1s linear infinite; }
+              @keyframes spin { to { transform: rotate(360deg); } }
+              #console { margin-top: 30px; width: 80%; max-width: 600px; background: #000; border: 1px solid #444; color: #00ff00; padding: 15px; font-size: 13px; height: 200px; overflow-y: auto; border-radius: 5px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+              .log-entry { margin-bottom: 5px; }
             </style>
           </head>
           <body>
-            <div id="l"><div class="s"></div><p>INITIALIZING ENGINE...</p></div>
+            <div id="loader-container">
+              <div class="spinner"></div>
+              <h2 style="margin-top: 20px; font-family: sans-serif;">AI BACKGROUND REMOVER</h2>
+              <div id="console"></div>
+            </div>
             <div id="root"></div>
             <script type="module">
               import { mount } from "https://cdn.jsdelivr.net/npm/@stlite/browser@0.75.0/build/stlite.js";
+              const consoleEl = document.getElementById('console');
+              const log = (msg) => {
+                const div = document.createElement('div');
+                div.className = 'log-entry';
+                div.innerHTML = `[${new Date().toLocaleTimeString()}] > ${msg}`;
+                consoleEl.appendChild(div);
+                consoleEl.scrollTop = consoleEl.scrollHeight;
+              };
+
+              log("Initializing WebAssembly engine...");
+              log("Downloading Python 3.11 runtime...");
+              log("Loading Streamlit & Rembg packages...");
+
               mount({
                 requirements: ["rembg", "pillow"],
                 entrypoint: "bg_remover.py",
                 files: { "bg_remover.py": {{CODE}} }
               }, document.getElementById("root")).then(() => {
-                document.getElementById('l').style.display = 'none';
+                log("Application mounted successfully!");
+                setTimeout(() => {
+                  document.getElementById('loader-container').style.display = 'none';
+                }, 800);
               });
             </script>
           </body>
@@ -103,8 +134,6 @@ jobs:
           with open('dist/index.html', 'w') as f:
               f.write(html_template.replace("{{CODE}}", json.dumps(wrapper_code)))
           EOF
-
-          # 3. Eseguiamo lo script
           python3 build_app.py
 
       - name: Upload artifact
