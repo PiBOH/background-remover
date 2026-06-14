@@ -10,6 +10,26 @@
         .bar-bg { width: 100%; background: #333; height: 12px; border-radius: 6px; overflow: hidden; margin: 20px 0; border: 1px solid #444; }
         #bar-fill { width: 0%; background: #ff4b4b; height: 100%; transition: width 0.4s; }
         #console { background: #000; color: #0f0; padding: 15px; font-size: 12px; height: 180px; overflow-y: auto; border: 1px solid #444; border-radius: 4px; box-shadow: 0 0 15px rgba(0,255,0,0.1); }
+        
+        /* Tasto di emergenza non invasivo */
+        .emergency-link {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            font-family: sans-serif;
+            font-size: 12px;
+            color: #666;
+            text-decoration: none;
+            padding: 8px 12px;
+            border: 1px solid #333;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+        .emergency-link:hover {
+            color: #ff4b4b;
+            border-color: #ff4b4b;
+            background: rgba(255, 75, 75, 0.05);
+        }
     </style>
 </head>
 <body>
@@ -19,6 +39,12 @@
         <div class="bar-bg"><div id="bar-fill"></div></div>
         <div id="console"></div>
     </div>
+
+    <!-- Tasto Emergenza -->
+    <a href="https://bgremover.streamlit.app/" class="emergency-link" title="Click here if the app is taking too long to load">
+        Not working? Try the server version →
+    </a>
+
     <div id="root"></div>
     <script type="module">
         import { mount } from "https://cdn.jsdelivr.net/npm/@stlite/browser@0.75.0/build/stlite.js";
@@ -33,28 +59,4 @@
             if (p < 98) {
                 p += (100 - p) * 0.05;
                 fill.style.width = p + '%';
-                let elapsed = (Date.now() - start) / 1000;
-                let rem = Math.max(1, Math.round(25 - elapsed));
-                stats.textContent = `Engine Load: ${Math.round(p)}% | Estimated: ${rem}s remaining`;
-            }
-        }, 1000);
-
-        log("Waking up WebAssembly kernel...");
-        log("Downloading Python runtime...");
-        log("Installing: rembg, pillow...");
-
-        mount({
-            requirements: ["rembg", "pillow"],
-            entrypoint: "first-run-github-pages.py",
-            files: {
-                "first-run-github-pages.py": { url: "./first-run-github-pages.py" },
-                "bg_remover.py": { url: "./bg_remover.py" }
-            }
-        }, document.getElementById("root")).then(() => {
-            clearInterval(interval);
-            log("System online! Launching Phase 2...");
-            setTimeout(() => { document.getElementById('box').style.display='none'; }, 800);
-        });
-    </script>
-</body>
-</html>
+                let elapsed = (Date.now() - 
