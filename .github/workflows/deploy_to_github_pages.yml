@@ -1,0 +1,50 @@
+name: Deploy Streamlit to GitHub Pages
+
+on:
+  push:
+    branches: ["main"] # O il nome del tuo branch principale
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build static site with stlite
+        run: |
+          # Installiamo lo strumento di conversione
+          npm install @stlite/stlite-cli
+          
+          # Esportiamo bg_remover.py come sito statico
+          # Nota: includiamo rembg, pillow e onnxruntime come dipendenze
+          npx @stlite/stlite-cli export bg_remover.py \
+            --requirements rembg,pillow,onnxruntime \
+            --output dist
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'dist'
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps:deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
