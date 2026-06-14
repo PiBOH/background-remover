@@ -1,4 +1,4 @@
-[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/PiBOH/background-remover/deploy_to_github_pages.yml?style=for-the-badge&logo=Github&cacheSeconds=10)](https://github.com/PiBOH/background-remover/actions/workflows/deploy_to_github_pages.yml) **<- if you use the [github pages link](https://piboh.github.io/background-remover/) you have to wait some minutes at the firts lanchuc.**
+[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/PiBOH/background-remover/deploy_to_github_pages.yml?style=flat-sqare&logo=Github&cacheSeconds=10)](https://github.com/PiBOH/background-remover/actions/workflows/deploy_to_github_pages.yml) **<- if you use the [github pages link](https://piboh.github.io/background-remover/) you have to wait some minutes at the firts lanchuc.**
 
 <a name="readme-top"></a>
 
