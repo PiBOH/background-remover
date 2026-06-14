@@ -28,145 +28,64 @@ jobs:
           with open('bg_remover.py', 'r') as f:
               original_code = f.read()
 
-          # Prepariamo il codice Python modificato per includere il download del modello con progress bar
-          wrapper_code = """
-          import streamlit as st
-          import os
-          import requests
-          from pathlib import Path
-          import time
+          # Codice Python "potenziato" con download del modello
+          wrapper_code = r"""
+import streamlit as st
+import os
+import urllib.request
+from pathlib import Path
+import time
 
-          def ensure_model_exists():
-              model_dir = Path("/home/pyodide/.u2net")
-              model_path = model_dir / "u2net.onnx"
-              
-              if not model_path.exists():
-                  st.info("🚀 First time setup: Downloading AI Model (approx. 175MB)...")
-                  model_dir.mkdir(parents=True, exist_ok=True)
-                  
-                  # Mostriamo una barra di progresso e una finta console
-                  progress_bar = st.progress(0)
-                  status_text = st.empty()
-                  console_output = st.empty()
-                  
-                  url = "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx"
-                  
-                  try:
-                      # Usiamo una richiesta stream per il progresso
-                      response = requests.get(url, stream=True)
-                      total_size = int(response.headers.get('content-length', 176220000))
-                      
-                      with open(model_path, "wb") as f:
-                          chunk_size = 1024 * 1024  # 1MB
-                          downloaded = 0
-                          for data in response.iter_content(chunk_size=chunk_size):
-                              downloaded += len(data)
-                              f.write(data)
-                              percent = min(int(downloaded * 100 / total_size), 100)
-                              progress_bar.progress(percent)
-                              status_text.text(f"Downloading: {percent}%% ({downloaded // (1024*1024)}MB / {total_size // (1024*1024)}MB)")
-                              if percent %% 10 == 0:
-                                  console_output.code(f"[SYSTEM] Received chunk... {downloaded} bytes\\n[INFO] Saving to {model_path}")
-                      
-                      st.success("✅ Model downloaded successfully!")
-                      time.sleep(1)
-                      st.rerun()
-                  except Exception as e:
-                      st.error(f"Error downloading model: {e}")
-                      st.info("Try refreshing the page.")
-                      st.stop()
-              else:
-                  # Il modello esiste, procediamo con l'app originale
-                  pass
+def ensure_model_exists():
+    model_dir = Path("/home/pyodide/.u2net")
+    model_path = model_dir / "u2net.onnx"
+    
+    if not model_path.exists():
+        st.markdown("### 🚀 First time setup")
+        st.info("Downloading AI Model (approx. 175MB). Please wait, this happens only once.")
+        model_dir.mkdir(parents=True, exist_ok=True)
+        
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        url = "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx"
+        
+        try:
+            def report_progress(block_num, block_size, total_size):
+                downloaded = block_num * block_size
+                if total_size > 0:
+                    percent = min(int(downloaded * 100 / total_size), 100)
+                    progress_bar.progress(percent)
+                    status_text.text(f"Status: Downloading... {percent}% ({downloaded // (1024*1024)}MB / {total_size // (1024*1024)}MB)")
 
-          # Eseguiamo il controllo del modello prima di tutto
-          if "model_ready" not in st.session_state:
-              ensure_model_exists()
-              st.session_state["model_ready"] = True
+            urllib.request.urlretrieve(url, model_path, reporthook=report_progress)
+            
+            st.success("✅ Model downloaded! Loading application...")
+            time.sleep(1)
+            st.session_state["model_ready"] = True
+            st.rerun()
+        except Exception as e:
+            st.error(f"Error downloading model: {e}")
+            st.stop()
+    else:
+        st.session_state["model_ready"] = True
 
-          # Inseriamo qui il codice originale dell'app
-          """ + original_code
+if "model_ready" not in st.session_state:
+    ensure_model_exists()
+else:
+    # --- CODICE ORIGINALE ---
+""" + original_code
 
+          # Template HTML con caricamento visibile
           html_template = """
           <!DOCTYPE html>
           <html>
             <head>
               <meta charset="UTF-8" />
-              <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-              <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-              <title>AI Background Remover - Loading</title>
+              <title>AI Background Remover - Loading...</title>
               <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@stlite/browser@0.75.0/build/stlite.css" />
               <style>
-                #loading-container {
-                  position: fixed; top: 0; left: 0; width: 100%%; height: 100%%;
-                  background: #0e1117; color: white; display: flex; flex-direction: column;
-                  align-items: center; justify-content: center; z-index: 9999; font-family: monospace;
-                }
-                .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #ff4b4b; border-radius: 50%%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 20px; }
-                @keyframes spin { 0%% { transform: rotate(0deg); } 100%% { transform: rotate(360deg); } }
-                #console { width: 80%%; max-width: 600px; background: #000; padding: 15px; border-radius: 5px; font-size: 12px; color: #0f0; height: 150px; overflow-y: auto; border: 1px solid #333; }
-              </style>
-            </head>
-            <body>
-              <div id="loading-container">
-                <div class="spinner"></div>
-                <div style="margin-bottom: 10px;">SYSTEM INITIALIZING...</div>
-                <div id="console">
-                  [BOOT] Starting Pyodide...<br>
-                  [BOOT] Loading Streamlit components...<br>
-                  [BOOT] This may take 30-60 seconds on first run.<br>
-                </div>
-              </div>
-              <div id="root"></div>
-              <script type="module">
-                const consoleEl = document.getElementById('console');
-                function log(msg) {
-                  const div = document.createElement('div');
-                  div.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}`;
-                  consoleEl.appendChild(div);
-                  consoleEl.scrollTop = consoleEl.scrollHeight;
-                }
-
-                import { mount } from "https://cdn.jsdelivr.net/npm/@stlite/browser@0.75.0/build/stlite.js";
-                
-                log("Mounting application...");
-                
-                mount(
-                  {
-                    requirements: ["rembg", "pillow", "requests"],
-                    entrypoint: "bg_remover.py",
-                    files: {
-                      "bg_remover.py": %s
-                    },
-                  },
-                  document.getElementById("root"),
-                ).then(() => {
-                  log("Streamlit is ready!");
-                  setTimeout(() => {
-                    document.getElementById('loading-container').style.display = 'none';
-                  }, 1000);
-                });
-              </script>
-            </body>
-          </html>
-          """
-          
-          with open('dist/index.html', 'w') as f:
-              f.write(html_template % json.dumps(wrapper_code))
-          EOF
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: 'dist'
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+                body { background-color: #0e1117; margin: 0; padding: 0; color: white; font-family: sans-serif; }
+                #loader {
+                  display: flex; flex-direction: column; align-items: center; justify-content: center;
+                  height: 100vh; width: 
