@@ -1,3 +1,5 @@
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/PiBOH/background-remover/deploy_to_github_pages.yml?style=for-the-badge&logo=Github&cacheSeconds=10)
+
 <a name="readme-top"></a>
 
 <div align="center">
