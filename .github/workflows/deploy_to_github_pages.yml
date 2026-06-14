@@ -17,17 +17,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22' # Richiesto dall'ultima versione di stlite
+
       - name: Build static site with stlite
         run: |
-          # Installiamo lo strumento di conversione
-          npm install @stlite/stlite-cli
-          
-          # Esportiamo l'app. 
-          # Nota: rimosso onnxruntime dai requirements perché rembg lo include già 
-          # e stlite lo gestisce internamente per il browser.
-          npx @stlite/stlite-cli export bg_remover.py \
-            --requirements rembg,pillow \
-            --output dist
+          # Creiamo un file requirements specifico per il browser
+          # Rimuoviamo onnxruntime perché stlite lo gestisce internamente
+          echo "rembg" > requirements-stlite.txt
+          echo "pillow" >> requirements-stlite.txt
+
+          # Esportiamo l'app usando il nuovo pacchetto @stlite/cli
+          # Il comando corretto è 'web'
+          npx @stlite/cli web . \
+            --entrypoint bg_remover.py \
+            --requirements requirements-stlite.txt \
+            --out dist
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
